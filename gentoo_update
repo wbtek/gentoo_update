@@ -47,7 +47,7 @@ showdate=0;        # Shows the date after the sync step, if set
 
 # Check if the script is run with root privileges
 if [[ $EUID -ne 0 ]]; then
-  echo "$0: Needs root or sudo privileges to run. Forcing 'pretend'."
+  echo -e "$0: Needs root or sudo privileges to run. Forcing 'pretend'.\n"
   pretend=1
 fi
 
@@ -201,7 +201,10 @@ until [[ $exitwhile != 0 ]] ; do
 
     short_usage|long_usage|cmdline|actions|brief|-h|h|-?)
       thisfile=$(basename ${0})
-      echo -e "$0: Update Gentoo. Do <first_action> and all to right."
+      echo -e "$0: Update Gentoo. Do <first_action> and those to right below."
+      if [[ $action == "long_usage" ]]; then
+        echo -e
+      fi
       echo -e "Usage: $thisfile [help] [modifiers] [<first_action>]"
       echo -e "  modifiers: only pretend quick strict exhaustive debug"
       echo -e "  first_action: (sync|portage|emerge|depclean|preserved|revdep[do])"
@@ -216,7 +219,7 @@ until [[ $exitwhile != 0 ]] ; do
         echo -e "  'revdep' -- check whether libraries changed under packages."
         echo -e
         echo -e "Special actions:"
-        echo -e "  'system' -- 'emerge' with @system not @world. Flows to 'emerge'."
+        echo -e "  'system' -- 'emerge' with @system, not @world. Flows to 'depclean'."
         echo -e "  'revdepdo' -- same as 'revdep' but rebuilds compromised packages."
         echo -e
         echo -e "Modifiers:"
@@ -244,7 +247,7 @@ until [[ $exitwhile != 0 ]] ; do
 
     # Unrecognized argument handling, defaults to short usage instructions
     *)
-      echo -e "\n${0}: Unrecognized argument '$action'\n"
+      echo -e "${0}: Unrecognized argument '$action'\n"
       action=""
       cmd=""
       nextaction=short_usage
