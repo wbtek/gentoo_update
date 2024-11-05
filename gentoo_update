@@ -1,0 +1,291 @@
+#!/bin/bash
+
+# The MIT License (MIT)
+#
+# Copyright (c) 2024 Greg Slocum, WBTek
+# a division of WhiteBear Family, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+#
+# Updates Gentoo system plus actions recommended following an emerge
+#
+#   Usage: ./script_name [modifiers] [first_action]
+#   See '--help' for more detailed information.
+#
+
+# Primary variables with default settings for each run. These control the
+# script's behavior, including debug output, action flow, and depth of
+# dependency checking.
+
+action=${1:-set_defaults_for_no_action_given}; # Initial action (set default if none provided)
+nextaction="";     # Placeholder for determining next action in the sequence
+exitwhile=0;       # Controls loop exit; 1 indicates loop completion
+debug=0;           # Debug mode (1 = enabled), outputs more detailed information
+only=0;            # Limits the script to a single action when set to 1
+pretend=0;         # If set to 1, shows commands without executing them
+quick=0;           # Quick mode; light dependency checking, minimal options
+strict=0;          # Stricter dependency checking
+exhaustive=1;      # Full, exhaustive dependency checking
+showdate=0;        # Shows the date after the sync step, if set
+
+# Check if the script is run with root privileges
+if [[ $EUID -ne 0 ]]; then
+  echo "$0: Needs root or sudo privileges to run. Forcing 'pretend'."
+  pretend=1
+fi
+
+# Main loop executes each action sequentially based on user input.
+until [[ $exitwhile != 0 ]] ; do
+  # Debug output for current action and flow control
+  if [[ $debug != 0 ]]; then echo -e "case: a:'$action'"; fi
+  case $action in
+
+    # Debugging enabled, setting debug variable
+    debug)
+      debug=1
+      shift
+      action=${1:-set_defaults_for_no_action_given}
+      echo -e "Debugging:"
+      continue
+      ;;
+
+    # Enables 'only' mode to stop after a single action is completed
+    only)
+      only=1
+      shift
+      action=${1:-set_defaults_for_no_action_given}
+      continue
+      ;;
+
+    # Shows commands without execution, useful for verification
+    pretend)
+      pretend=1
+      shift
+      action=${1:-set_defaults_for_no_action_given}
+      continue
+      ;;
+
+    # Quick dependency check (minimal depth), disables strict/exhaustive modes
+    quick)
+      quick=1
+      strict=0
+      exhaustive=0
+      shift
+      action=${1:-set_defaults_for_no_action_given}
+      continue
+      ;;
+
+    # Strict mode provides deeper checking without full exhaustiveness
+    strict)
+      quick=0
+      strict=1
+      exhaustive=0
+      shift
+      action=${1:-set_defaults_for_no_action_given}
+      continue
+      ;;
+
+    # Exhaustive mode, enables maximum depth for dependency checking
+    exhaustive)
+      quick=0
+      strict=0
+      exhaustive=1
+      shift
+      action=${1:-set_defaults_for_no_action_given}
+      continue
+      ;;
+
+    # Sets a default action if none specified, defaulting to 'emerge'
+    set_defaults_for_no_action_given)
+      action=emerge
+      only=1
+      continue
+      ;;
+
+    # Syncs local Portage database with latest packages from Gentoo's servers
+    sync)
+      cmd="emerge --sync"
+      showdate=1;  # Enable date display after sync
+      nextaction=portage
+      ;;
+
+    # Updates the Portage package manager itself to ensure latest version
+    portage)
+      cmd="emerge -u1va portage"
+      nextaction=emerge
+      ;;
+
+    # Updates the system's core packages based on dependency level selected
+    system)
+      if [[ $quick != 0 ]] ; then
+        cmd="emerge -uavN --keep-going=y --nospinner @system";
+      elif [[ $strict != 0 ]] ; then
+        cmd="emerge -DuavN --newrepo --with-bdeps=y --keep-going=y --complete-graph=y --backtrack=50 --changed-slot=y --nospinner @system";
+      elif [[ $exhaustive != 0 ]] ; then
+        cmd="emerge -DuavN --newrepo --with-bdeps=y --keep-going=y --changed-deps=y --complete-graph=y --backtrack=50 --changed-slot=y --nospinner @system";
+      fi
+      nextaction=emerge
+      ;;
+
+    # Full system update for all packages, chosen depth of dependency checks
+    emerge)
+      if [[ $quick != 0 ]]; then
+        cmd="emerge -uavN --keep-going=y --nospinner @world";
+      elif [[ $strict != 0 ]] ; then
+        cmd="emerge -DuavN --newrepo --with-bdeps=y --keep-going=y --complete-graph=y --backtrack=50 --changed-slot=y --nospinner @world";
+      elif [[ $exhaustive != 0 ]] ; then
+        cmd="emerge -DuavN --newrepo --with-bdeps=y --keep-going=y --changed-deps=y --complete-graph=y --backtrack=50 --changed-slot=y --nospinner @world";
+      fi
+      nextaction=depclean
+      ;;
+
+    # Removes unused dependencies, reclaiming disk space after user confirmation
+    depclean)
+      cmd="emerge -ac"
+      nextaction=preserved
+      ;;
+
+    # Rebuilds libraries preserved from older builds
+    preserved)
+      cmd="emerge -av @preserved-rebuild"
+      nextaction=revdep
+      ;;
+
+    # Pre-check for reverse dependency issues due to library changes
+    revdep)
+      cmd="revdep-rebuild -p"
+      nextaction=finished
+      ;;
+
+    # Performs a full rebuild of compromised packages based on dependencies
+    revdepdo)
+      cmd="revdep-rebuild"
+      nextaction=finished
+      ;;
+
+    # Signifies end of action sequence
+    finished)
+      cmd=""
+      exitwhile=1
+      ;;
+
+    # In case of command failure, halts further actions
+    failed)
+      cmd=""
+      exitwhile=1
+      ;;
+
+    # Help section displays usage instructions and examples
+    --help|-help|help|usage)
+      action=""
+      cmd=""
+      nextaction=long_usage
+      ;;
+
+    short_usage|long_usage|cmdline|actions|brief|-h|h|-?)
+      thisfile=$(basename ${0})
+      echo -e "$0: Update Gentoo. Do <first_action> and all to right."
+      echo -e "Usage: $thisfile [help] [modifiers] [<first_action>]"
+      echo -e "  modifiers: only pretend quick strict exhaustive debug"
+      echo -e "  first_action: (sync|portage|emerge|depclean|preserved|revdep[do])"
+      if [[ $action == "long_usage" ]]; then
+        echo -e
+        echo -e "Actions: (do <first_action> to end unless [only] specified)"
+        echo -e "  'sync' -- sync local portage database from web (1x/day max please!)."
+        echo -e "  'portage' -- fetch and update packages of portage."
+        echo -e "  'emerge' -- fetch and update everything installed using portage."
+        echo -e "  'depclean' -- removes unused packages after user confirmation."
+        echo -e "  'preserved' -- rebuild to allow removal of old library versions."
+        echo -e "  'revdep' -- check whether libraries changed under packages."
+        echo -e
+        echo -e "Special actions:"
+        echo -e "  'system' -- 'emerge' with @system not @world. Flows to 'emerge'."
+        echo -e "  'revdepdo' -- same as 'revdep' but rebuilds compromised packages."
+        echo -e
+        echo -e "Modifiers:"
+        echo -e "  'only' stops after only one action (doesn't do rest of list)."
+        echo -e "  'pretend' shows commands without executing them."
+        echo -e "  'quick' doesn't add several deepish options to 'emerge'."
+        echo -e "  'strict' almost 'exhaustive' but builds less."
+        echo -e "  'exhaustive' makes 'emerge' build if dependencies changed."
+        echo -e "  'debug' shows diagnostics. Shows more as first option."
+        echo -e
+        echo -e "Examples:"
+        echo -e "  '$thisfile sync' does *all* actions in list above."
+        echo -e "  '$thisfile emerge' does very deep 'emerge' and all remaining steps."
+        echo -e "  '$thisfile only quick system' stops after shallow emerge of @system'."
+        echo -e
+        echo -e "Default is 'only emerge' when no <first_action> given, so:"
+        echo -e "  '$thisfile' is shortcut for '$thisfile only emerge'"
+        echo -e "    (stops after very deep emerge)"
+        echo -e "  '$thisfile quick' is shortcut for '$thisfile quick only emerge'."
+        echo -e "    (stops after shallow emerge)"
+      fi
+      cmd=""
+      exitwhile=1
+      ;;
+
+    # Unrecognized argument handling, defaults to short usage instructions
+    *)
+      echo -e "\n${0}: Unrecognized argument '$action'\n"
+      action=""
+      cmd=""
+      nextaction=short_usage
+      ;;
+  esac
+
+  # Debug summary of current action, flow control, and modifier statuses
+  if [[ $debug != 0 ]]; then echo -e "esac: a:'$action' na:'$nextaction' ew:'$exitwhile' o:'$only' p:'$pretend' q:'$quick' st'$strict' pd'$exhaustive'"; fi
+
+  # Executes commands based on action and modifier flags (e.g., pretend mode)
+  if [[ $exitwhile == 0 ]] ; then
+    if [[ $only != 0 ]]; then
+      nextaction=finished;  # Restricts to a single action if 'only' set
+    fi
+    if [[ $action != "" ]]; then
+      echo -en "\n##### "
+      if [[ $pretend != 0 ]]; then echo -en "pretend:"; fi
+      if [[ $only != 0 ]]; then echo -en "only:"; fi
+      if [[ $quick != 0 ]]; then echo -en "quick:"; fi
+      if [[ $strict != 0 ]]; then echo -en "strict:"; fi
+      if [[ $exhaustive != 0 ]]; then echo -en "exhaustive:"; fi
+      echo -en "$action #####\n";
+    fi
+    if [[ $cmd != "" ]]; then
+      if [[ $pretend != 0 ]]; then
+        cmd="echo pretended to \"$cmd\"";  # Displays command without execution
+      else
+        echo $cmd;
+      fi
+      if ( time $cmd ); then
+        action=$nextaction;  # Sets next action upon success
+      else
+        echo ">>> Step '$action' failed doing '$cmd' <<<" ;
+        action=failed;  # Marks action as failed, halts remaining actions
+      fi
+    else
+      action=$nextaction;  # Proceeds to next action if no command is set
+    fi
+  fi
+done
+
+# Display the date upon sync completion, if showdate flag is enabled
+if [[ $showdate != 0 ]]; then date; fi
+
