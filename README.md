@@ -73,7 +73,7 @@ Default is 'only emerge' when no <first_action> given, so:
   ```bash
   gentoo_update depclean
   ```
-  will also attempt `preserved` and `revdep`. `sync` does all actions, being first on the list.
+  will also attempt `preserved` and `revdep`. `sync` as `first_action` would do all actions, as it is first in the list.
 
 ## Examples
 
