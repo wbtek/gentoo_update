@@ -87,7 +87,7 @@ Default is 'only emerge' when no <first_action> given, so:
   ```
   Performs sync and exhaustive emerge with all follow-up actions.
 
-- **Deepest Emerge with All Steps but sync**:  
+- **Deep Emerge with All Steps but sync**:  
   ```bash
   gentoo_update strict emerge
   ```
@@ -101,15 +101,15 @@ Default is 'only emerge' when no <first_action> given, so:
   ```bash
   gentoo_update only exhaustive emerge
   ```
-  Executes an exhaustive `emerge`, then stops.
+  Executes an exhaustive `emerge` without `sync`, then stops.
 
 - **Only Quick Emerge**:  
   ```bash
-  ./gentoo_update quick
+  gentoo_update quick
   ```
   is the same as
   ```bash
-  ./gentoo_update only quick emerge
+  gentoo_update only quick emerge
   ```
   Limits the script to a shallow `emerge`, then stops.
 
