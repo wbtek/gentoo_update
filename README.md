@@ -11,13 +11,13 @@
 ## Usage
 
 ```bash
-./gentoo_update [modifiers] [first_action]
+gentoo_update [modifiers] [first_action]
 ```
 
 The script performs various update actions for Gentoo, based on user-specified commands and modifiers. For a detailed list of options, run:
 
 ```bash
-./gentoo_update help
+gentoo_update help
 ```
 
 ### Important Note
