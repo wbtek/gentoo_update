@@ -34,6 +34,8 @@
 # script's behavior, including debug output, action flow, and depth of
 # dependency checking.
 
+# cmd_preface="nice ionice taskset 0xff000"; # Lower system impact, confine to i5-13500 e-cores
+cmd_preface="";    # stuff to put before executed commands, see above
 action=${1:-set_defaults_for_no_action_given}; # Initial action (set default if none provided)
 nextaction="";     # Placeholder for determining next action in the sequence
 exitwhile=0;       # Controls loop exit; 1 indicates loop completion
@@ -273,11 +275,11 @@ until [[ $exitwhile != 0 ]] ; do
     fi
     if [[ $cmd != "" ]]; then
       if [[ $pretend != 0 ]]; then
-        cmd="echo pretended to \"$cmd\"";  # Displays command without execution
+        cmd="echo pretended to \"$cmd_preface $cmd\"";  # Displays command without execution
       else
-        echo $cmd;
+        echo $cmd_preface $cmd;
       fi
-      if ( time $cmd ); then
+      if ( time $cmd_preface $cmd ); then
         action=$nextaction;  # Sets next action upon success
       else
         echo ">>> Step '$action' failed doing '$cmd' <<<" ;
