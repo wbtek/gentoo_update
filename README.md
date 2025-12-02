@@ -6,7 +6,7 @@
 
 ## Overview
 
-`gentoo_update` is a Bash script designed to streamline the process of updating a Gentoo Linux system and performing recommended follow-up actions. Developed by WBTek, a company with over 25 years of experience in embedded control and custom technical solutions, this script is ideal for system administrators and advanced Gentoo users who need a reliable, automated update solution.
+`gentoo_update` is a bash script to take care of the follow-up actions needed while updating a Gentoo Linux system. Specify where to start and it does the rest. For instance, if you have already done a 'sync' (which should only be done once a day), you can start at 'emerge' and it will update everything, clean unused dependencies, check for preserved libraries then do reverse dependency checks. Or you can start at 'sync' and it will first try to update portage itself, then do emerge and all the steps following that. By default it does 'strict' dependency checking. You can also specify 'quick' or '(ex)haustive' to modify that. You can also do steps individually.
 
 ## Usage
 
@@ -14,7 +14,7 @@
 gentoo_update [modifiers] [first_action]
 ```
 
-The script performs various update actions for Gentoo, based on user-specified commands and modifiers. For a detailed list of options, run:
+Performs sequences of actions required to maintain Gentoo, with a single command. For a detailed list of options, run:
 
 ```bash
 gentoo_update help
@@ -37,8 +37,9 @@ Usage: gentoo_update [help] [modifiers] [<first_action>]
 
 Actions: (do <first_action> and all following unless [only] specified)
   'sync' -- sync local portage database from web (1x/day max please!).
-  'portage' -- fetch and update packages of portage.
-  'emerge' -- fetch and update everything installed using portage.
+  'portage' -- fetch and update portage itself. (hopefully redundant)
+  'system' -- fetch and update everything @system. (seldom needed)
+  'emerge' -- fetch and update everything @world. (usually enough)
   'depclean' -- removes unused packages after user confirmation.
   'preserved' -- rebuild to allow removal of old library versions.
   'revdep' -- check whether libraries changed under packages.
@@ -47,24 +48,24 @@ Special actions:
   'system' -- 'emerge' with @system, not @world. Flows to 'depclean'.
   'revdepdo' -- same as 'revdep' but rebuilds compromised packages.
 
-Modifiers (abbreviated form in parenthesis):
+Modifiers (abreviated form in parenthesis):
   'only' stops after only one action (doesn't do rest of list).
   'pretend' shows commands without executing them.
-  'quick' doesn't add several deepish options to 'emerge'.
-  'strict' almost 'exhaustive' but builds less.
-  '(ex)haustive' makes 'emerge' build if dependencies changed.
+  'quick' minimal dependency checking.
+  'strict' (default) 'quick' + quite good dependency checking.
+  '(ex)haustive' 'strict' + rebuilds if any dependencies rebuilt.
   'debug' shows diagnostics. Shows more as first option.
 
 Examples:
-  'gentoo_update sync' does *all* actions in list above.
-  'gentoo_update emerge' does very deep 'emerge' and all remaining steps.
-  'gentoo_update only quick system' stops after shallow emerge of @system'.
+  'gentoo_update sync' does ALL actions in list above.
+  'gentoo_update emerge' sets 'strict' mode and starts from 'emerge'.
+  'gentoo_update only quick system' stops after quick emerge of @system'.
 
-Default is 'only emerge' when no <first_action> given, so:
-  'gentoo_update' is shortcut for 'gentoo_update only emerge'
-    (stops after very deep emerge)
-  'gentoo_update quick' is shortcut for 'gentoo_update quick only emerge'.
-    (stops after shallow emerge)
+Default is 'strict only emerge' when no <first_action> given, so:
+  'gentoo_update' is shortcut for 'gentoo_update strict only emerge'
+    (stops after strict emerge)
+  'gentoo_update quick' is short for 'gentoo_update quick only emerge'.
+    (stops after quick emerge)
 ```
 
 ## Note
@@ -77,41 +78,34 @@ Default is 'only emerge' when no <first_action> given, so:
 
 ## Examples
 
-- **Full Update with sync and deepest dependency checks**:  
+- **Sync, emerge and all follow-up actions (should only sync once a day)**:
   ```bash
   gentoo_update sync
   ```
-  is the same as
+- **Emerge and all follow-up actions but no sync (should only sync once a day)**:
   ```bash
-  gentoo_update exhaustive sync
+  gentoo_update emerge
   ```
-  Performs sync and exhaustive emerge with all follow-up actions.
-
-- **Deep Emerge with All Steps but sync**:  
-  ```bash
-  gentoo_update strict emerge
-  ```
-  Executes a less deep `emerge` and all subsequent actions.
-
-- **Deepest Emerge then stop (default)**:  
+- **Emerge, then stop (no other actions)**:
   ```bash
   gentoo_update
   ```
-  is the same as
+- **Emerge with exhaustive dependency checking, then stop (no other actions)**:
   ```bash
-  gentoo_update only exhaustive emerge
+  gentoo_update ex (or exhaustive)
   ```
-  Executes an exhaustive `emerge` without `sync`, then stops.
-
-- **Only Quick Emerge**:  
+- **Quick emerge with relaxed dependency checking, then stop (no other actions)**:
   ```bash
   gentoo_update quick
   ```
-  is the same as
+- **Build packages found by reverse dependency checking (no other actions)**:
   ```bash
-  gentoo_update only quick emerge
+  gentoo_update revdepdo
   ```
-  Limits the script to a shallow `emerge`, then stops.
+- **See what command would do without doing anything**:
+  ```bash
+  gentoo_update pretend <other modifiers> <first action>
+  ```
 
 ## License
 

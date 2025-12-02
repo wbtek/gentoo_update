@@ -214,8 +214,9 @@ until [[ $exitwhile != 0 ]] ; do
         echo -e
         echo -e "Actions: (do <first_action> and all following unless [only] specified)"
         echo -e "  'sync' -- sync local portage database from web (1x/day max please!)."
-        echo -e "  'portage' -- fetch and update packages of portage."
-        echo -e "  'emerge' -- fetch and update everything installed using portage."
+        echo -e "  'portage' -- fetch and update portage itself. (hopefully redundant)"
+        echo -e "  'system' -- fetch and update everything @system. (seldom needed)"
+        echo -e "  'emerge' -- fetch and update everything @world. (usually enough)"
         echo -e "  'depclean' -- removes unused packages after user confirmation."
         echo -e "  'preserved' -- rebuild to allow removal of old library versions."
         echo -e "  'revdep' -- check whether libraries changed under packages."
@@ -233,15 +234,15 @@ until [[ $exitwhile != 0 ]] ; do
         echo -e "  'debug' shows diagnostics. Shows more as first option."
         echo -e
         echo -e "Examples:"
-        echo -e "  '$thisfile sync' does *all* actions in list above."
-        echo -e "  '$thisfile emerge' does very deep 'emerge' and all remaining steps."
-        echo -e "  '$thisfile only quick system' stops after shallow emerge of @system'."
+        echo -e "  '$thisfile sync' does ALL actions in list above."
+        echo -e "  '$thisfile emerge' sets 'strict' mode and starts from 'emerge'."
+        echo -e "  '$thisfile only quick system' stops after quick emerge of @system'."
         echo -e
-        echo -e "Default is 'only emerge' when no <first_action> given, so:"
-        echo -e "  '$thisfile' is shortcut for '$thisfile only emerge'"
-        echo -e "    (stops after very deep emerge)"
-        echo -e "  '$thisfile quick' is shortcut for '$thisfile quick only emerge'."
-        echo -e "    (stops after shallow emerge)"
+        echo -e "Default is 'strict only emerge' when no <first_action> given, so:"
+        echo -e "  '$thisfile' is shortcut for '$thisfile strict only emerge'"
+        echo -e "    (stops after strict emerge)"
+        echo -e "  '$thisfile quick' is short for '$thisfile quick only emerge'."
+        echo -e "    (stops after quick emerge)"
       fi
       cmd=""
       exitwhile=1
