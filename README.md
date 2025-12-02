@@ -35,7 +35,7 @@ Usage: gentoo_update [help] [modifiers] [<first_action>]
   modifiers: only pretend quick strict exhaustive debug
   first_action: (sync|portage|emerge|depclean|preserved|revdep[do])
 
-Actions: (do <first_action> to end unless [only] specified)
+Actions: (do <first_action> and all following unless [only] specified)
   'sync' -- sync local portage database from web (1x/day max please!).
   'portage' -- fetch and update packages of portage.
   'emerge' -- fetch and update everything installed using portage.
@@ -47,12 +47,12 @@ Special actions:
   'system' -- 'emerge' with @system, not @world. Flows to 'depclean'.
   'revdepdo' -- same as 'revdep' but rebuilds compromised packages.
 
-Modifiers:
+Modifiers (abbreviated form in parenthesis):
   'only' stops after only one action (doesn't do rest of list).
   'pretend' shows commands without executing them.
   'quick' doesn't add several deepish options to 'emerge'.
   'strict' almost 'exhaustive' but builds less.
-  'exhaustive' makes 'emerge' build if dependencies changed.
+  '(ex)haustive' makes 'emerge' build if dependencies changed.
   'debug' shows diagnostics. Shows more as first option.
 
 Examples:

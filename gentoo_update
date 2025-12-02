@@ -105,7 +105,7 @@ until [[ $exitwhile != 0 ]] ; do
       ;;
 
     # Exhaustive mode, enables maximum depth for dependency checking
-    exhaustive)
+    exhaustive|ex)
       quick=0
       strict=0
       exhaustive=1
@@ -212,7 +212,7 @@ until [[ $exitwhile != 0 ]] ; do
       echo -e "  first_action: (sync|portage|emerge|depclean|preserved|revdep[do])"
       if [[ $action == "long_usage" ]]; then
         echo -e
-        echo -e "Actions: (do <first_action> to end unless [only] specified)"
+        echo -e "Actions: (do <first_action> and all following unless [only] specified)"
         echo -e "  'sync' -- sync local portage database from web (1x/day max please!)."
         echo -e "  'portage' -- fetch and update packages of portage."
         echo -e "  'emerge' -- fetch and update everything installed using portage."
@@ -224,12 +224,12 @@ until [[ $exitwhile != 0 ]] ; do
         echo -e "  'system' -- 'emerge' with @system, not @world. Flows to 'depclean'."
         echo -e "  'revdepdo' -- same as 'revdep' but rebuilds compromised packages."
         echo -e
-        echo -e "Modifiers:"
+        echo -e "Modifiers (abreviated form in parenthesis):"
         echo -e "  'only' stops after only one action (doesn't do rest of list)."
         echo -e "  'pretend' shows commands without executing them."
         echo -e "  'quick' minimal dependency checking."
         echo -e "  'strict' (default) 'quick' + quite good dependency checking."
-        echo -e "  'exhaustive' 'strict' + rebuilds if any dependencies rebuilt."
+        echo -e "  '(ex)haustive' 'strict' + rebuilds if any dependencies rebuilt."
         echo -e "  'debug' shows diagnostics. Shows more as first option."
         echo -e
         echo -e "Examples:"
