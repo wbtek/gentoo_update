@@ -6,7 +6,7 @@
 
 ## Overview
 
-`gentoo_update` is a bash script to take care of the follow-up actions needed while updating a Gentoo Linux system. Specify where to start and it does the rest. For instance, if you have already done a 'sync' (which should only be done once a day), you can start at 'emerge' and it will update everything, clean unused dependencies, check for preserved libraries then do reverse dependency checks. Or you can start at 'sync' and it will first try to update portage itself, then do emerge and all the steps following that. By default it does 'strict' dependency checking. You can also specify 'quick' or '(ex)haustive' to modify that. You can also do steps individually.
+The bash script `gentoo_update` takes care of the follow-up actions needed while updating a Gentoo Linux system. Specify where to start and it does the rest. For instance, if you have already done a 'sync' (which should only be done once a day), you can start at 'emerge' and it will update everything, clean unused dependencies, check for preserved libraries then do reverse dependency checks. Or you can start at 'sync' and it will first try to update portage itself, then do emerge and all the steps following that. By default it does 'strict' dependency checking. You can also specify 'quick' or '(ex)haustive' to modify that. You can also do steps individually.
 
 ## Usage
 
@@ -20,9 +20,11 @@ Performs sequences of actions required to maintain Gentoo, with a single command
 gentoo_update help
 ```
 
-### Important Note
+### Important Notes
 
 - **Root Permissions**: `gentoo_update` requires root or sudo privileges to execute system updates. If run without sufficient privileges, it will automatically enter "pretend" mode, allowing users to see the intended actions without making actual changes to the system.
+
+- **revdep-rebuild**: '--ask' is now passed to emerge so 'revdepdo' should no longer be needed. Look at the results carefully though. Sometimes just running revdep-rebuild twice gives a different answer. Sometimes it wants to rebuild packages which were just built.
 
 ## Help Output
 

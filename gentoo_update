@@ -172,7 +172,7 @@ until [[ $exitwhile != 0 ]] ; do
 
     # Pre-check for reverse dependency issues due to library changes
     revdep)
-      cmd="revdep-rebuild -p"
+      cmd="revdep-rebuild -v -- --ask"
       nextaction=finished
       ;;
 
