@@ -2,7 +2,7 @@
 
 # The MIT License (MIT)
 #
-# Copyright (c) 2025 Greg Slocum, WBTek
+# Copyright (c) 2026 Greg Slocum, WBTek
 # a division of WhiteBear Family, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -36,6 +36,14 @@
 
 # cmd_preface="nice ionice taskset 0xff000"; # Lower system impact, confine to i5-13500 e-cores
 cmd_preface="";    # stuff to put before executed commands, see above
+
+# command bodies
+     body_quick="emerge --keep-going=y --nospinner  -uavN";
+      body_deep="emerge --keep-going=y --nospinner -DuavN";
+    body_strict="emerge --keep-going=y --nospinner -DuavN --with-bdeps=y --complete-graph=y --backtrack=50 --changed-slot=y";
+body_exhaustive="emerge --keep-going=y --nospinner -DuavN --with-bdeps=y --complete-graph=y --backtrack=50 --changed-slot=y --changed-deps=y --newrepo";
+cmd_body=$body_deep; # default, make it match flags
+
 action=${1:-set_defaults_for_no_action_given}; # Initial action (set default if none provided)
 nextaction="";     # Placeholder for determining next action in the sequence
 exitwhile=0;       # Controls loop exit; 1 indicates loop completion
@@ -43,7 +51,8 @@ debug=0;           # Debug mode (1 = enabled), outputs more detailed information
 only=0;            # Limits the script to a single action when set to 1
 pretend=0;         # If set to 1, shows commands without executing them
 quick=0;           # Quick mode; light dependency checking, minimal options
-strict=1;          # Stricter dependency checking
+deep=1;            # Deeper dependency checking, minimal options
+strict=0;          # Stricter dependency checking
 exhaustive=0;      # Full, exhaustive dependency checking
 showdate=0;        # Shows the date after the sync step, if set
 
@@ -84,21 +93,37 @@ until [[ $exitwhile != 0 ]] ; do
       continue
       ;;
 
-    # Quick dependency check (minimal depth), disables strict/exhaustive modes
+    # Quick dependency check (minimal depth)
     quick)
       quick=1
+      deep=0
       strict=0
       exhaustive=0
+      cmd_body=$body_quick;
       shift
       action=${1:-set_defaults_for_no_action_given}
       continue
       ;;
 
-    # Strict mode provides deeper checking without full exhaustiveness
+    # Deep mode provides even deeper checking
+    deep)
+      quick=0
+      deep=1
+      strict=0
+      exhaustive=0
+      cmd_body=$body_deep;
+      shift
+      action=${1:-set_defaults_for_no_action_given}
+      continue
+      ;;
+
+    # Strict mode provides even deeper checking without full exhaustiveness
     strict)
       quick=0
+      deep=0
       strict=1
       exhaustive=0
+      cmd_body=$body_strict;
       shift
       action=${1:-set_defaults_for_no_action_given}
       continue
@@ -107,14 +132,16 @@ until [[ $exitwhile != 0 ]] ; do
     # Exhaustive mode, enables maximum depth for dependency checking
     exhaustive|ex)
       quick=0
+      deep=0
       strict=0
       exhaustive=1
+      cmd_body=$body_exhaustive;
       shift
       action=${1:-set_defaults_for_no_action_given}
       continue
       ;;
 
-    # Sets a default action if none specified, defaulting to 'emerge'
+    # Sets a default action if none specified, defaulting to 'only emerge'
     set_defaults_for_no_action_given)
       action=emerge
       only=1
@@ -136,25 +163,19 @@ until [[ $exitwhile != 0 ]] ; do
 
     # Updates the system's core packages based on dependency level selected
     system)
-      if [[ $quick != 0 ]] ; then
-        cmd="emerge -uavN --keep-going=y --nospinner @system";
-      elif [[ $strict != 0 ]] ; then
-        cmd="emerge -DuavN --newrepo --with-bdeps=y --keep-going=y --complete-graph=y --backtrack=50 --changed-slot=y --nospinner @system";
-      elif [[ $exhaustive != 0 ]] ; then
-        cmd="emerge -DuavN --newrepo --with-bdeps=y --keep-going=y --changed-deps=y --complete-graph=y --backtrack=50 --changed-slot=y --nospinner @system";
+      if [[ $cmd_body == "" ]]; then
+        cmd_body=$body_dp;
       fi
+      cmd="$cmd_body @system";
       nextaction=emerge
       ;;
 
     # Full system update for all packages, chosen depth of dependency checks
     emerge)
-      if [[ $quick != 0 ]]; then
-        cmd="emerge -uavN --keep-going=y --nospinner @world";
-      elif [[ $strict != 0 ]] ; then
-        cmd="emerge -DuavN --newrepo --with-bdeps=y --keep-going=y --complete-graph=y --backtrack=50 --changed-slot=y --nospinner @world";
-      elif [[ $exhaustive != 0 ]] ; then
-        cmd="emerge -DuavN --newrepo --with-bdeps=y --keep-going=y --changed-deps=y --complete-graph=y --backtrack=50 --changed-slot=y --nospinner @world";
+      if [[ $cmd_body == "" ]]; then
+        cmd_body=$body_dp;
       fi
+      cmd="$cmd_body @world";
       nextaction=depclean
       ;;
 
@@ -170,9 +191,9 @@ until [[ $exitwhile != 0 ]] ; do
       nextaction=revdep
       ;;
 
-    # Pre-check for reverse dependency issues due to library changes
+    # Pre-check for reverse dependency issues due to library changes, ignore cache
     revdep)
-      cmd="revdep-rebuild -v -- --ask"
+      cmd="revdep-rebuild -iv -- --ask"
       nextaction=finished
       ;;
 
@@ -208,7 +229,7 @@ until [[ $exitwhile != 0 ]] ; do
         echo -e
       fi
       echo -e "Usage: $thisfile [help] [modifiers] [<first_action>]"
-      echo -e "  modifiers: only pretend quick strict exhaustive debug"
+      echo -e "  modifiers: only pretend quick deep strict exhaustive debug"
       echo -e "  first_action: (sync|portage|emerge|depclean|preserved|revdep[do])"
       if [[ $action == "long_usage" ]]; then
         echo -e
@@ -228,9 +249,10 @@ until [[ $exitwhile != 0 ]] ; do
         echo -e "Modifiers (abreviated form in parenthesis):"
         echo -e "  'only' stops after only one action (doesn't do rest of list)."
         echo -e "  'pretend' shows commands without executing them."
-        echo -e "  'quick' minimal dependency checking."
-        echo -e "  'strict' (default) 'quick' + quite good dependency checking."
-        echo -e "  '(ex)haustive' 'strict' + rebuilds if any dependencies rebuilt."
+        echo -e "  'quick' for minimal dependency checking."
+        echo -e "  'deep' (default) for 'quick' + deeper dependency checking."
+        echo -e "  'strict' for 'deep' + quite thorough checking."
+        echo -e "  '(ex)haustive' for 'strict' + rebuilds if any dependencies rebuilt."
         echo -e "  'debug' shows diagnostics. Shows more as first option."
         echo -e
         echo -e "Examples:"
@@ -238,9 +260,9 @@ until [[ $exitwhile != 0 ]] ; do
         echo -e "  '$thisfile emerge' sets 'strict' mode and starts from 'emerge'."
         echo -e "  '$thisfile only quick system' stops after quick emerge of @system'."
         echo -e
-        echo -e "Default is 'strict only emerge' when no <first_action> given, so:"
-        echo -e "  '$thisfile' is shortcut for '$thisfile strict only emerge'"
-        echo -e "    (stops after strict emerge)"
+        echo -e "Default is 'deep only emerge' when no <first_action> given, so:"
+        echo -e "  '$thisfile' is shortcut for '$thisfile deep only emerge'"
+        echo -e "    (stops after deep emerge)"
         echo -e "  '$thisfile quick' is short for '$thisfile quick only emerge'."
         echo -e "    (stops after quick emerge)"
       fi
@@ -258,7 +280,7 @@ until [[ $exitwhile != 0 ]] ; do
   esac
 
   # Debug summary of current action, flow control, and modifier statuses
-  if [[ $debug != 0 ]]; then echo -e "esac: a:'$action' na:'$nextaction' ew:'$exitwhile' o:'$only' p:'$pretend' q:'$quick' st'$strict' pd'$exhaustive'"; fi
+  if [[ $debug != 0 ]]; then echo -e "esac: a:'$action' na:'$nextaction' ew:'$exitwhile' o:'$only' p:'$pretend' q:'$quick' dp:'$deep' st'$strict' pd'$exhaustive'"; fi
 
   # Executes commands based on action and modifier flags (e.g., pretend mode)
   if [[ $exitwhile == 0 ]] ; then
@@ -270,13 +292,14 @@ until [[ $exitwhile != 0 ]] ; do
       if [[ $pretend != 0 ]]; then echo -en "pretend:"; fi
       if [[ $only != 0 ]]; then echo -en "only:"; fi
       if [[ $quick != 0 ]]; then echo -en "quick:"; fi
+      if [[ $deep != 0 ]]; then echo -en "deep:"; fi
       if [[ $strict != 0 ]]; then echo -en "strict:"; fi
       if [[ $exhaustive != 0 ]]; then echo -en "exhaustive:"; fi
       echo -en "$action #####\n";
     fi
     if [[ $cmd != "" ]]; then
       if [[ $pretend != 0 ]]; then
-        cmd="echo pretended to \"$cmd_preface $cmd\"";  # Displays command without execution
+        cmd="echo pretended to \"${cmd_preface:+$cmd_preface }$cmd\"";  # Displays command without execution
       else
         echo $cmd_preface $cmd;
       fi
